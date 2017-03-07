@@ -10,7 +10,7 @@ class Classifier:
     def classify(self, x):
         pass
 
-    def derivative(self):
+    def derivative(self, x):
         pass
 
 class Linear(Classifier):
@@ -35,7 +35,11 @@ class Parabolic(Classifier):
         self.outputs = 1
 
     def classify(self, x):
-        return np.array([self.a * (np.linalg.norm(x) ** 2) + np.dot(self.b, x) + self.c])
+        return np.array(np.dot(x * self.a + self.b, x) + self.c).flatten()
+
+    def derivative(self, x):
+        A = np.matrix(self.a)
+        return x * (A + A.T) + self.b
 
 class MergeHorizontal(Classifier):
     def __init__(self, classifiers):
@@ -62,7 +66,35 @@ class MergeVertical(Classifier):
         return y
 
     def derivative(self, x):
-        return np.product([classifier.derivative(x) for classifier in self.classifiers])
+        y = x
+        Dy = np.identity(x.size)
+        for classifier in reversed(self.classifiers):
+            Dy = classifier.derivative(y) * Dy
+            y = classifier.classify(y)
+        return Dy
+
+class Sigmoid(Classifier):
+    def __init__(self, n):
+        self.inputs = n
+        self.outputs = n
+
+    def classify(self, x):
+        return 1 / (1 + np.exp(-x))
+
+    def derivative(self, x):
+        y = self.classify(x)
+        return sparse.diags(y * (1 - y))
+
+class LogSigmoid(Classifier):
+    def __init__(self, n):
+        self.inputs = n
+        self.outputs = n
+
+    def classify(self, x):
+        return -np.log(1 + np.exp(-x))
+
+    def derivative(self, x):
+        return sparse.diags(np.exp(-x) / (1 + np.exp(-x)))
 
 class Softmax(Classifier):
     def __init__(self, n):
@@ -130,20 +162,17 @@ class Concatenate(Classifier):
         return J
 
 class Convolutional(Classifier):
-    def __init__(self, classifier, indices, skip, inputs):
+    def __init__(self, classifier, indices, skip):
         self.classifier = classifier
         self.indices = np.array(indices)
         self.skip = skip
-        self.inputs = inputs
-
-        self.numCells = int(self.inputs / skip)
-
-        self.outputs = self.numCells * self.classifier.outputs
 
     def classify(self, x):
-        y = np.zeros(self.outputs)
-        n = self.inputs
-        for i in range(self.numCells):
+        n = x.size
+        numCells = int(n / self.skip)
+        outputs = numCells * self.classifier.outputs
+        y = np.zeros(outputs)
+        for i in range(numCells):
             j = i * self.classifier.outputs
             k = (i + 1) * self.classifier.outputs
             ls = list((i * self.skip + self.indices) % n)
@@ -151,13 +180,17 @@ class Convolutional(Classifier):
         return y
 
     def derivative(self, x):
-        J = sparse.csr_matrix((self.outputs, self.inputs))
-        n = self.inputs
-        for i in range(self.numCells):
+        n = x.size
+        numCells = int(n / self.skip)
+        outputs = numCells * self.classifier.outputs
+        J = sparse.csr_matrix((outputs, n))
+        for i in range(numCells):
             j = i * self.classifier.outputs
             k = (i + 1) * self.classifier.outputs
             ls = list((i * self.skip + self.indices) % n)
             J[j:k, ls] = sparse.csr_matrix(self.classifier.derivative(x[ls]))
+            if i % 100 == 0:
+                print(i)
         return J
 
 class Custom(Classifier):
