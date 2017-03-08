@@ -49,10 +49,16 @@ class Transform:
         return {variableNames[i] : x[i::n].reshape(self.shape) for i in range(n)}
 
     def dictionaryAsMatrix(self, variables, rowVariableNames, columnVariableNames, outputSparse=True):
+        m = len(rowVariableNames)
+        n = len(columnVariableNames)
         if outputSparse:
-            return sparse.bmat([[variables[(rowVariable, columnVariable)] for columnVariable in columnVariableNames] for rowVariable in rowVariableNames])
+            A = sparse.csr_matrix((self.size * m, self.size * n))
         else:
-            return np.bmat([[variables[(rowVariable, columnVariable)] for columnVariable in columnVariableNames] for rowVariable in rowVariableNames])
+            A = np.zeros(self.size * m, self.size * n)
+        for i, rowVariable in enumerate(rowVariableNames):
+            for j, columnVariable in enumerate(columnVariableNames):
+                A[i::m, j::n] = variables[(rowVariable, columnVariable)]
+        return A
 
     def matrixAsDictionary(self, A, rowVariableNames, columnVariableNames):
         m = len(rowVariableNames)
@@ -79,15 +85,25 @@ class Merge(Transform):
         self.transforms = [transforms[i] for i in transformOrder]
 
     def classify(self, inputs, inputFormat='dictionary', outputFormat='dictionary'):
-        values = inputs
+        values = inputs.copy()
         for transform in self.transforms:
             values.update(transform.classify(values))
         return {variableName : values[variableName] for variableName in self.outputVariables}
 
     def derivative(self, inputs, inputFormat='dictionary', outputFormat='dictionary'):
-        values = inputs
-        derivatives = { inputVariable : { inputVariable : sparse.identity(self.size) } for inputVariable in inputs.keys() }
+        values = inputs.copy()
+        derivatives = { }
         for transform in self.transforms:
-            derivatives.update({ outputVariable : { baseVariable : Dy * Dx for baseVariable, Dx in derivatives[inputVariable].items() } for (outputVariable, inputVariable), Dy in transform.derivative(values).items()})
+            for (outputVariable, inputVariable), Dy in transform.derivative(values).items():
+                if inputVariable in self.inputVariables:
+                    derivatives[(outputVariable, inputVariable)] = Dy
+                else:
+                    for baseVariable in self.inputVariables:
+                        if (inputVariable, baseVariable) in derivatives:
+                            if (outputVariable, baseVariable) in derivatives:
+                                derivatives[(outputVariable, baseVariable)] += Dy.multiply(derivatives[(inputVariable, baseVariable)])
+                            else:
+                                derivatives[(outputVariable, baseVariable)] = Dy.multiply(derivatives[(inputVariable, baseVariable)])
+            print("Took derivative of {0} to {1}".format(transform.inputVariables, transform.outputVariables))
             values.update(transform.classify(values))
-        return { (outputVariable, inputVariable) : derivatives[outputVariable][inputVariable] for inputVariable in derivatives[outputVariable].keys() for outputVariable in derivatives.keys() }
+        return { (outputVariable, inputVariable) : derivatives[(outputVariable, inputVariable)] for inputVariable in self.inputVariables for outputVariable in self.outputVariables }

@@ -2,27 +2,30 @@ import numpy as np
 import scipy.optimize as opt
 import scipy.sparse as sparse
 import classifier
+import util
 
 class Solver:
-    def __init__(self, transform, constraints, maxiter=5):
+    def __init__(self, transform, maxiter=10, disp=True):
         self.transform = transform
-        self.constraints = constraints
-        self.options = { "maxiter" : maxiter }
+        #self.constraints = constraints
+        self.options = { "maxiter" : maxiter, "disp" : disp }
 
     def solve(self, constants, arguments, objective, goal='maximize'):
-        argumentNames = arguments.keys()
+        argumentNames = list(arguments.keys())
         if goal is 'maximize':
             sgn = -1
         elif goal is 'minimize':
             sgn = 1
         else:
             raise ValueError('goal must be either \'maximize\' or \'minimize\'')
-        f = lambda x: sgn * np.sum(self.transform.classify({ **constants, **self.transform.asDictionary(x, argumentNames) })[objective])
-        J = lambda x: sgn * np.sum(self.transform.dictionaryAsMatrix(self.transform.derivative({ **constants, **self.transform.asDictionary(x, argumentNames) }), [objective], argumentNames), axis=1)
+        def f(x):
+            return sgn * np.sum(self.transform.classify({ **constants, **self.transform.asDictionary(x, argumentNames) })[objective])
+        def J(x):
+            return sgn * util.flatten(np.array(np.sum(self.transform.dictionaryAsMatrix(self.transform.derivative({ **constants, **self.transform.asDictionary(x, argumentNames) }), [objective], argumentNames), axis=0)))
         x0 = self.transform.asVector(arguments, argumentNames)
-        constraints = [(lambda x: self.constraints[k]({ **constants, **asDictionary(x, argumentNames) }, i)) for k in range(len(self.constraints)) for i in range(n)]
-        result = opt.minimize(f, x0, jac=J, constraints=self.constraints, options=self.options)
-        return self.transform.asDictionary(result.x, argumentNames)
+        #constraints = [{ "type" : t, "fun" : lambda x: f(np.unravel_index(i, self.transform.shape), { **constants, **self.transform.asDictionary(x, argumentNames) }) } for (t, f) in self.constraints for i in range(self.transform.size)]
+        result = opt.minimize(f, x0, jac=J, options=self.options, method='CG')
+        return self.transform.asDictionary(result.x.reshape(self.transform.shape), argumentNames)
 
 class Merge(Solver):
     def __init__(self, solvers):

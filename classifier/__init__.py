@@ -189,8 +189,6 @@ class Convolutional(Classifier):
             k = (i + 1) * self.classifier.outputs
             ls = list((i * self.skip + self.indices) % n)
             J[j:k, ls] = sparse.csr_matrix(self.classifier.derivative(x[ls]))
-            if i % 100 == 0:
-                print(i)
         return J
 
 class Custom(Classifier):
