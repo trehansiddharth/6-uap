@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.sparse as sparse
-import util
+import gnn.util as util
 from math import *
 
 class Classifier:
@@ -195,13 +195,5 @@ class Custom(Classifier):
     def __init__(self, inputs, outputs, fclassify, fderivative):
         self.inputs = inputs
         self.outputs = outputs
-        self.classify = fclassify
         self.derivative = fderivative
-
-def convolvedKernel(kernel, img, skip):
-    classifier = Linear(util.flatten(kernel), 0)
-    ixs = util.kernelIndices(kernel.shape, img.shape)
-    return Convolutional(classifier, ixs, skip, img.size)
-
-def constant(k, inputs):
-    return Linear(np.zeros(inputs), k)
+        self.classify = fclassify

@@ -1,8 +1,11 @@
 import numpy as np
 from math import *
-import util
-import classifier
-import kernel
+import gnn.util as util
+import gnn.classifier as classifier
+import gnn.kernel as kernel
+
+def constant(k, inputs):
+    return Linear(np.zeros(inputs), k)
 
 def blur(sigma, windowSize, ishape):
     # Construct a classifier that blurs the signal in the window to filter out single-pixel noise

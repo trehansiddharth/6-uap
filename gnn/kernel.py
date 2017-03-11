@@ -1,7 +1,8 @@
 import numpy as np
 from functools import reduce
 from math import *
-import util
+import gnn.util as util
+import gnn.classifier as classifier
 
 def make(f, windowSize, center):
     kernel = np.zeros(windowSize)
@@ -36,6 +37,7 @@ def sobel(K, windowSize, pixelDistance, center):
     ci, cj = center
     dvs = [-float(pixelDistance) / 2, float(pixelDistance) / 2]
     gaussians = [gaussian(K, windowSize, (floor(ci + di), floor(cj + dj))) for di in dvs for dj in dvs]
-
-    # Contruct the two sobel kernels
     return gaussians[0] - gaussians[3], gaussians[2] - gaussians[1]
+
+def toClassifier(k, offset):
+    return classifier.Linear(util.flatten(k), offset)

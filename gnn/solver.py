@@ -1,8 +1,8 @@
 import numpy as np
 import scipy.optimize as opt
 import scipy.sparse as sparse
-import classifier
-import util
+import gnn.classifier as classifier
+import gnn.util as util
 
 class Solver:
     def __init__(self, transform, maxiter=10, disp=True):
@@ -21,7 +21,7 @@ class Solver:
         def f(x):
             return sgn * np.sum(self.transform.classify({ **constants, **self.transform.asDictionary(x, argumentNames) })[objective])
         def J(x):
-            return sgn * util.flatten(np.array(np.sum(self.transform.dictionaryAsMatrix(self.transform.derivative({ **constants, **self.transform.asDictionary(x, argumentNames) }), [objective], argumentNames), axis=0)))
+            return sgn * util.flatten(np.array(np.sum(self.transform.dictionaryAsMatrix(self.transform.derivative({ **constants, **self.transform.asDictionary(x, argumentNames) }, verbose=self.options["disp"]), [objective], argumentNames), axis=0)))
         x0 = self.transform.asVector(arguments, argumentNames)
         #constraints = [{ "type" : t, "fun" : lambda x: f(np.unravel_index(i, self.transform.shape), { **constants, **self.transform.asDictionary(x, argumentNames) }) } for (t, f) in self.constraints for i in range(self.transform.size)]
         result = opt.minimize(f, x0, jac=J, options=self.options, method='CG')
@@ -30,3 +30,6 @@ class Solver:
 class Merge(Solver):
     def __init__(self, solvers):
         self.solvers = solvers
+
+    def solve(self, constants, arguments, objective, goal='maximize'):
+        pass

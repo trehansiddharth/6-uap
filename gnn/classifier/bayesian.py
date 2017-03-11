@@ -1,6 +1,6 @@
 import numpy as np
-import util
-import classifier
+import gnn.util as util
+import gnn.classifier as classifier
 
 def totalProbability():
     # Input is [P(X|A), P(X|NOT A), P(A)]

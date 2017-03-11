@@ -1,6 +1,6 @@
-import classifier
+import gnn.classifier as classifier
 import numpy as np
-import util
+import gnn.util as util
 import scipy.sparse as sparse
 
 class Transform:
@@ -90,7 +90,7 @@ class Merge(Transform):
             values.update(transform.classify(values))
         return {variableName : values[variableName] for variableName in self.outputVariables}
 
-    def derivative(self, inputs, inputFormat='dictionary', outputFormat='dictionary'):
+    def derivative(self, inputs, inputFormat='dictionary', outputFormat='dictionary', verbose=False):
         values = inputs.copy()
         derivatives = { }
         for transform in self.transforms:
@@ -104,6 +104,7 @@ class Merge(Transform):
                                 derivatives[(outputVariable, baseVariable)] += Dy.multiply(derivatives[(inputVariable, baseVariable)])
                             else:
                                 derivatives[(outputVariable, baseVariable)] = Dy.multiply(derivatives[(inputVariable, baseVariable)])
-            print("Took derivative of {0} to {1}".format(transform.inputVariables, transform.outputVariables))
+            if verbose:
+                print("Took derivative of {0} to {1}".format(transform.inputVariables, transform.outputVariables))
             values.update(transform.classify(values))
         return { (outputVariable, inputVariable) : derivatives[(outputVariable, inputVariable)] for inputVariable in self.inputVariables for outputVariable in self.outputVariables }
